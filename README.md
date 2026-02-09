@@ -318,4 +318,4 @@ MIT License - Feel free to use this for learning and interviews!
 **Good luck with your LLD interviews! 🚀**
 
 ## Support my work ☕
-Buy me a coffee 👉 https://bit.ly/4r8dDOa
+Buy me a coffee 👉 https://bit.ly/3MnzqlH

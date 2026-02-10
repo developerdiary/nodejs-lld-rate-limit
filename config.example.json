@@ -1,0 +1,43 @@
+{
+  "rateLimiters": {
+    "default": {
+      "algorithm": {
+        "type": "token-bucket",
+        "options": {
+          "capacity": 10,
+          "refillRate": 1
+        }
+      },
+      "keyStrategy": {
+        "type": "ip"
+      }
+    },
+    "premium": {
+      "algorithm": {
+        "type": "fixed-window",
+        "options": {
+          "limit": 1000,
+          "windowSizeInSeconds": 3600
+        }
+      },
+      "keyStrategy": {
+        "type": "user",
+        "options": {
+          "userIdField": "userId"
+        }
+      }
+    },
+    "strict": {
+      "algorithm": {
+        "type": "sliding-window",
+        "options": {
+          "limit": 5,
+          "windowSizeInSeconds": 60
+        }
+      },
+      "keyStrategy": {
+        "type": "ip"
+      }
+    }
+  }
+}

@@ -12,7 +12,7 @@ A **production-ready, distributed rate limiting system** implementing multiple a
 
 ### Interview Topics Covered:
 ✅ **Algorithm Design** - Token Bucket, Fixed Window, Sliding Window  
-✅ **System Design** - Strategy Pattern, Clean Architecture  
+✅ **System Design** - Strategy Pattern, Factory Pattern, Clean Architecture  
 ✅ **Distributed Systems** - Redis, Atomic Operations, Race Conditions  
 ✅ **Scalability** - Horizontal scaling, Multi-server coordination  
 ✅ **Trade-offs** - Memory vs Accuracy, Latency vs Consistency  
@@ -30,6 +30,7 @@ This implementation demonstrates **production-grade** solutions with atomic oper
 
 ### Architecture & Design
 - ✅ **Strategy Pattern** - Pluggable algorithms & key strategies
+- ✅ **Factory Pattern** - Easy creation of rate limiters by type
 - ✅ **SOLID Principles** - Clean, maintainable, testable code
 - ✅ **Redis + Lua Scripts** - Atomic operations, no race conditions
 - ✅ **Distributed-Ready** - Works across multiple servers
@@ -133,6 +134,7 @@ Request arrives:
 rate-limit/
 ├── src/
 │   ├── app.js                          # Express app setup
+│   ├── app.config-driven.js            # Config-driven example
 │   ├── server.js                       # Entry point
 │   │
 │   ├── redis/
@@ -147,23 +149,81 @@ rate-limit/
 │   │   │   ├── FixedWindowAlgorithm.js # Fixed window logic
 │   │   │   └── SlidingWindowAlgorithm.js # Sliding window logic
 │   │   │
-│   │   └── strategies/                 # Key generation strategies
-│   │       ├── RateLimitKeyStrategy.js # Base strategy
-│   │       ├── IpKeyStrategy.js        # IP-based limiting
-│   │       └── UserKeyStrategy.js      # User-based limiting
+│   │   ├── strategies/                 # Key generation strategies
+│   │   │   ├── RateLimitKeyStrategy.js # Base strategy
+│   │   │   ├── IpKeyStrategy.js        # IP-based limiting
+│   │   │   └── UserKeyStrategy.js      # User-based limiting
+│   │   │
+│   │   └── factories/                  # Factory Pattern implementations
+│   │       ├── RateLimitAlgorithmFactory.js  # Creates algorithms by type
+│   │       ├── RateLimitKeyStrategyFactory.js # Creates strategies by type
+│   │       └── RateLimiterFactory.js         # High-level factory for config-driven setup
 │   │
 │   └── routes/
 │       └── test.routes.js              # Test endpoints
 │
+├── config.example.json                 # Example configuration file
 ├── package.json
 └── README.md
 ```
 
 ### Design Patterns Used
-- **Strategy Pattern**: Swap algorithms & key strategies at runtime
-- **Factory Pattern**: Create rate limiter instances dynamically
+- **Strategy Pattern**: Swap algorithms & key strategies at runtime (algorithms and key strategies are interchangeable)
+- **Factory Pattern**: Create algorithm and strategy instances based on type strings
 - **Template Method**: Base algorithm class with common logic
 - **Dependency Injection**: Middleware accepts strategy objects
+
+#### Strategy Pattern Implementation
+The system uses two strategy hierarchies:
+1. **Algorithm Strategy**: Different rate limiting algorithms (Token Bucket, Fixed Window, Sliding Window)
+2. **Key Strategy**: Different ways to identify clients (IP, User ID, API Key)
+
+Each concrete implementation extends a base interface and provides its own logic. The middleware works with the base interface, allowing runtime swapping.
+
+#### Factory Pattern Implementation
+Instead of manually instantiating concrete classes with `new`, factories encapsulate the creation logic:
+
+```javascript
+// Without Factory (tight coupling)
+const algorithm = new TokenBucketAlgorithm({ capacity: 10, refillRate: 1 });
+
+// With Factory (loose coupling)
+const algorithm = RateLimitAlgorithmFactory.create('token-bucket', { 
+  capacity: 10, 
+  refillRate: 1 
+});
+```
+
+**Benefits:**
+- Configuration-driven creation (can load from config files)
+- Easier to add new algorithms without changing client code
+- Centralized validation and error handling
+- Simplified testing and mocking
+
+**Factory Pattern Structure:**
+```
+┌──────────────────────────────────────────────┐
+│      RateLimiterFactory (High-Level)         │
+│  • createFromConfig()                        │
+│  • createMultipleFromConfig()                │
+└──────────────┬───────────────────────────────┘
+               │ uses
+       ┌───────┴────────┐
+       ↓                ↓
+┌──────────────┐  ┌──────────────────────┐
+│  Algorithm   │  │   KeyStrategy        │
+│  Factory     │  │   Factory            │
+│              │  │                      │
+│ create()     │  │ create()             │
+│  ↓           │  │  ↓                   │
+│  • token-    │  │  • ip                │
+│    bucket    │  │  • user              │
+│  • fixed-    │  │                      │
+│    window    │  │                      │
+│  • sliding-  │  │                      │
+│    window    │  │                      │
+└──────────────┘  └──────────────────────┘
+```
 
 ---
 
@@ -183,7 +243,106 @@ rate-limit/
 
 ---
 
-## 🚀 Getting Started
+## � Usage Examples
+
+### Using Factory Pattern - Config Driven (Best for Production)
+
+Create a configuration file:
+```json
+{
+  "rateLimiters": {
+    "default": {
+      "algorithm": {
+        "type": "token-bucket",
+        "options": { "capacity": 10, "refillRate": 1 }
+      },
+      "keyStrategy": { "type": "ip" }
+    },
+    "premium": {
+      "algorithm": {
+        "type": "fixed-window",
+        "options": { "limit": 1000, "windowSizeInSeconds": 3600 }
+      },
+      "keyStrategy": { 
+        "type": "user", 
+        "options": { "userIdField": "userId" }
+      }
+    }
+  }
+}
+```
+
+Load and use:
+```javascript
+const RateLimiterFactory = require('./rate-limit/factories/RateLimiterFactory');
+const config = require('./config.json');
+
+// Create all rate limiters from config
+const rateLimiters = RateLimiterFactory.createMultipleFromConfig(config);
+
+app.use('/api/public', rateLimiters.default);
+app.use('/api/premium', rateLimiters.premium);
+```
+
+### Using Factory Pattern - Direct Creation
+
+```javascript
+const rateLimitMiddleware = require('./rate-limit/rateLimitMiddleware');
+const RateLimitAlgorithmFactory = require('./rate-limit/factories/RateLimitAlgorithmFactory');
+const RateLimitKeyStrategyFactory = require('./rate-limit/factories/RateLimitKeyStrategyFactory');
+
+// Token Bucket with IP-based limiting
+const tokenBucketLimiter = rateLimitMiddleware({
+  keyStrategy: RateLimitKeyStrategyFactory.create('ip'),
+  algorithm: RateLimitAlgorithmFactory.create('token-bucket', {
+    capacity: 10,
+    refillRate: 1 // 1 token per second
+  })
+});
+
+// Fixed Window with User-based limiting
+const fixedWindowLimiter = rateLimitMiddleware({
+  keyStrategy: RateLimitKeyStrategyFactory.create('user', { userIdField: 'userId' }),
+  algorithm: RateLimitAlgorithmFactory.create('fixed-window', {
+    limit: 100,
+    windowSizeInSeconds: 3600 // 1 hour
+  })
+});
+
+// Sliding Window with IP-based limiting
+const slidingWindowLimiter = rateLimitMiddleware({
+  keyStrategy: RateLimitKeyStrategyFactory.create('ip'),
+  algorithm: RateLimitAlgorithmFactory.create('sliding-window', {
+    limit: 5,
+    windowSizeInSeconds: 10
+  })
+});
+
+// Apply to routes
+app.use('/api', tokenBucketLimiter);
+app.use('/api/premium', fixedWindowLimiter);
+```
+
+### Using Direct Instantiation (Alternative)
+
+```javascript
+const TokenBucketAlgorithm = require('./rate-limit/algorithms/TokenBucketAlgorithm');
+const IpKeyStrategy = require('./rate-limit/strategies/IpKeyStrategy');
+
+const rateLimiter = rateLimitMiddleware({
+  keyStrategy: new IpKeyStrategy(),
+  algorithm: new TokenBucketAlgorithm({
+    capacity: 10,
+    refillRate: 1
+  })
+});
+
+app.use(rateLimiter);
+```
+
+---
+
+## �🚀 Getting Started
 
 ### Prerequisites
 - Node.js 16+ installed

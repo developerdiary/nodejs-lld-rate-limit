@@ -1,35 +1,34 @@
 const express = require('express');
 const rateLimitMiddleware = require('./rate-limit/rateLimitMiddleware');
-const TokenBucketAlgorithm = require('./rate-limit/algorithms/TokenBucketAlgorithm');
-const IpKeyStrategy = require('./rate-limit/strategies/IpKeyStrategy');
-const FixedWindowAlgorithm = require('./rate-limit/algorithms/FixedWindowAlgorithm');
-const SlidingWindowAlgorithm = require('./rate-limit/algorithms/SlidingWindowAlgorithm');
+const RateLimitAlgorithmFactory = require('./rate-limit/factories/RateLimitAlgorithmFactory');
+const RateLimitKeyStrategyFactory = require('./rate-limit/factories/RateLimitKeyStrategyFactory');
 
 const app = express();
 
+// Using Factory Pattern - Token Bucket example
 // const rateLimiter = rateLimitMiddleware({
-//   keyStrategy: new IpKeyStrategy(),
-//   algorithm: new TokenBucketAlgorithm({
+//   keyStrategy: RateLimitKeyStrategyFactory.create('ip'),
+//   algorithm: RateLimitAlgorithmFactory.create('token-bucket', {
 //     capacity: 10,
 //     refillRate: 1 // 1 token per second
 //   })
 // });
 // app.use(rateLimiter);
 
+// Using Factory Pattern - Fixed Window example
 // const fixedWindowLimiter = rateLimitMiddleware({
-//   keyStrategy: new IpKeyStrategy(),
-//   algorithm: new FixedWindowAlgorithm({
+//   keyStrategy: RateLimitKeyStrategyFactory.create('ip'),
+//   algorithm: RateLimitAlgorithmFactory.create('fixed-window', {
 //     limit: 5,
 //     windowSizeInSeconds: 10
 //   })
 // });
-
 // app.use(fixedWindowLimiter);
 
-// Sliding Window: 5 requests per 10 seconds
+// Using Factory Pattern - Sliding Window: 5 requests per 10 seconds
 const slidingWindowLimiter = rateLimitMiddleware({
-  keyStrategy: new IpKeyStrategy(),
-  algorithm: new SlidingWindowAlgorithm({
+  keyStrategy: RateLimitKeyStrategyFactory.create('ip'),
+  algorithm: RateLimitAlgorithmFactory.create('sliding-window', {
     limit: 5,
     windowSizeInSeconds: 10
   })

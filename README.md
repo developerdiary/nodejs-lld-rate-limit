@@ -21,6 +21,11 @@ This implementation demonstrates **production-grade** solutions with atomic oper
 
 ---
 
+## Support my work ☕
+Buy me a coffee 👉 https://bit.ly/buydeveloperdiary
+
+---
+
 ## ✨ Features
 
 ### Algorithms Implemented
@@ -475,3 +480,6 @@ MIT License - Feel free to use this for learning and interviews!
 6. **Test your solution**: Walk through examples with different scenarios
 
 **Good luck with your LLD interviews! 🚀**
+
+## Support my work ☕
+Buy me a coffee 👉 https://bit.ly/buydeveloperdiary
